@@ -1,19 +1,12 @@
-#include "ros/ros.h"
+#include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Int32.h>
 #include <iostream>
-#include <dynamic_reconfigure/server.h>
-#include <motioncontrol/TutorialsConfig.h>
+
 using namespace std;
 
 float presentAngularPosition, previousAngularPosition;
 std_msgs::Int32 pwm;
-
-
-void callback(motioncontrol::TutorialsConfig &config, int level) {
-  ROS_INFO("Reconfigure Request: %f %f %f", 
-            config.p_param, config.i_param, config.d_param);
-}
 
 int turningOutputPWMMapping(float output){
 	float maxOutput=120, minOutput=-120,scale;
@@ -22,8 +15,12 @@ int turningOutputPWMMapping(float output){
 		output = maxOutput;
 	if(output < minOutput)
 		output = minOutput;
-	scale = 510/(maxOutput- minOutput);
-	pwm= (int)(output*scale);
+	scale = 510.0/(maxOutput- minOutput);
+	float temp;
+
+	temp = output*scale;
+	pwm= (int)temp;
+
 	return pwm;
 }
 
@@ -33,8 +30,8 @@ void turnxyPlane(float theta){
 	finalAngularPosition = presentAngularPosition + theta;
 	error=finalAngularPosition- presentAngularPosition;
 	
-	int loopRate =10;
-	float derivative=0,integral=0,dt=1/loopRate,p=1,i=0,d=0;
+	int loopRate =100 ;
+	float derivative=0,integral=0,dt=1.0/loopRate,p=1,i=0,d=0;
 	bool reached=false;
 	
 	ros::NodeHandle nh;
@@ -48,6 +45,7 @@ void turnxyPlane(float theta){
 		derivative = (presentAngularPosition- previousAngularPosition)/dt;
 
 		output= (p*error)+(i*integral)+(d*derivative);
+
 		pwm.data = turningOutputPWMMapping(output);
 
 		// //use for giving manual input
@@ -103,10 +101,6 @@ int main(int argc, char** argv){
 
 	ros::init(argc,argv,"motionApplier");
 	ros::NodeHandle n;
-	dynamic_reconfigure::Server<motioncontrol::TutorialsConfig> server;
-    dynamic_reconfigure::Server<motioncontrol::TutorialsConfig>::CallbackType f;
-    f = boost::bind(&callback, _1, _2);
-    server.setCallback(f);
 	ros::Subscriber yaw=n.subscribe<std_msgs::Float64>("yaw",1000,&yawCb);
 	turnxyPlane(theta);
 	ros::spin();
