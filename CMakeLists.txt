@@ -126,6 +126,18 @@ add_executable(motionApplier src/motionApplier.cpp)
 target_link_libraries(motionApplier ${catkin_LIBRARIES})
 add_dependencies(motionApplier motionApplier_generate_messages_cpp)
 
+add_executable(motionApplierTest src/motionApplierTest.cpp)
+target_link_libraries(motionApplierTest ${catkin_LIBRARIES})
+add_dependencies(motionApplierTest motionApplierTest_generate_messages_cpp)
+
+add_executable(square src/square.cpp)
+target_link_libraries(square ${catkin_LIBRARIES})
+add_dependencies(square square_generate_messages_cpp)
+
+add_executable(tempLine src/tempLine.cpp)
+target_link_libraries(tempLine ${catkin_LIBRARIES})
+add_dependencies(tempLine tempLine_generate_messages_cpp)
+
 ##may be needed ???
 #add_dependencies(talker ${catkin_EXPORTED_TARGETS})
 
