@@ -1,18 +1,21 @@
+
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Int32.h>
+//#include <std_msgs/Char.h>
 #include <iostream>
-
 #define minPWM 120
 using namespace std;
 
 float presentAngularPosition, previousAngularPosition;
-float finalAngularPosition = 0;
-float error, output;
+float finalAngularPosition, error, output;
 bool initData =false;
+bool start = false;
+float theta = 0;
 
 std_msgs::Int32 pwm;
 std_msgs::Int32 dir;//that we have to send
+
 
 void turningOutputPWMMapping(float output){
 	float maxOutput=120, minOutput=-120,scale;
@@ -24,38 +27,35 @@ void turningOutputPWMMapping(float output){
 	float temp;
 
 	temp = output*scale;
+	//pwm= (int)temp;
 
-	if(temp<0){
+	if(temp>0){
 		pwm.data = (int)temp;
-		dir.data = 3; //anti-clockwise
+		dir.data = 3; 
 	}
 	else{
 		pwm.data = -1*(int)temp;
-		dir.data = 4; //clockwise
+		dir.data = 4;
 	}
 }
 
 //This function is used to turn in the x-y plane we will use for this turn
-void turnxyPlane(){
-
+void turnxyPlane(float theta){
+	finalAngularPosition = presentAngularPosition + theta;
+	error=finalAngularPosition- presentAngularPosition;
+	
 	int loopRate =10 ;
+	float derivative=0,integral=0,dt=1.0/loopRate,p=1,i=0,d=0;
+	bool reached=false;
+	
 	ros::NodeHandle nh;
 	ros::Publisher PWM=nh.advertise<std_msgs::Int32>("PWM",1000);
 	ros::Publisher direction=nh.advertise<std_msgs::Int32>("direction",1000);
 	ros::Rate loop_rate(loopRate);
 	pwm.data=0;
 	dir.data=5;
-
-	while(!initData && ros::ok()){
-		ros::spinOnce();
-		loop_rate.sleep();
-	}
-
-	float derivative=0,integral=0,dt=1.0/loopRate,p=1,i=0,d=0;
-	bool reached=false;
-
 	while(ros::ok()){
-		error = finalAngularPosition - presentAngularPosition;
+		error = finalAngularPosition - presentAngularPosition;		
 		integral+= (error*dt);
 		derivative = (presentAngularPosition- previousAngularPosition)/dt;
 
@@ -63,11 +63,17 @@ void turnxyPlane(){
 
 		turningOutputPWMMapping(output);
 
+		// //use for giving manual input
+		// int temp;
+		// cout << "give pwm input" << endl;
+		// cin >> temp;
+		// pwm.data = temp;
+
 		//this lower limit depends upon the bot itself
 		if(pwm.data < minPWM)
-			pwm.data= minPWM;
+			pwm.data= minPWM;	
 
-
+		
 		PWM.publish(pwm);
 		direction.publish(dir);
 		ROS_INFO("pwm send to arduino %d in %d", pwm.data,dir.data);
@@ -94,31 +100,55 @@ void turnxyPlane(){
 				ROS_INFO("thrusters stopped");							
 				loop_rate.sleep();
 			}
-			break;
+		break;
 		}	
 	}
 }
 
+
 void yawCb(std_msgs::Float64 msg){
 	previousAngularPosition = presentAngularPosition;
-	presentAngularPosition = msg.data;
-
-//	ROS_INFO("New angular postion %f", msg.data);
-
+	presentAngularPosition= msg.data;
+	ROS_INFO("New angular postion %f", msg.data);
 	if(initData == false){
+		finalAngularPosition = presentAngularPosition + theta;
 		initData = true;
-		presentAngularPosition = msg.data;
-		previousAngularPosition = presentAngularPosition;
-		ROS_INFO("Target recieved");
+		if(finalAngularPosition >= 180)
+			finalAngularPosition = finalAngularPosition -360;
+		else if(finalAngularPosition <= -180)
+			finalAngularPosition = finalAngularPosition +360;
 	}
 }
 
+void lineCb(std_msgs::Float64 msg){
+	theta=msg.data;
+	start = true;
+}
+
 int main(int argc, char** argv){
+	// input theta will be positive if we have to rotate the bot ACW
+	// if(argc!=2){
+	// 	cout << "incorret number of arguments" << endl;
+	// 	return 1;
+	// }
+	// else
+	// 	theta=atof(argv[1]);
+	// cout << "theta is " <<argv[1] << endl;
 
 	ros::init(argc,argv,"motionApplier");
 	ros::NodeHandle n;
-	ros::Subscriber yaw=n.subscribe<std_msgs::Float64>("lineAngle",1000,&yawCb);
-	turnxyPlane();
+	ros::Subscriber yaw=n.subscribe<std_msgs::Float64>("yaw",1000,&yawCb);
+	ros::Subscriber ipAngle=n.subscribe<std_msgs::Float64>("lineAngle",1000,&lineCb); 
+
+    int initialLoopRate=1;
+	ros::Rate loop_rate(initialLoopRate);
+
+	while(ros::ok() && start==false){
+		ROS_INFO("Waiting for data from ip");		
+		ros::spinOnce();
+		loop_rate.sleep();
+	}
+	turnxyPlane(theta);
 	ros::spin();
 	return 0;
 }
