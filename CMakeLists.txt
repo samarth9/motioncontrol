@@ -6,7 +6,6 @@ project(motioncontrol)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
 #  OpenCV
-  dynamic_reconfigure
   message_generation
   message_runtime
   roscpp
@@ -96,9 +95,6 @@ find_package(catkin REQUIRED COMPONENTS
 #   cfg/DynReconf2.cfg
 # )
 
-#add dynamic reconfigure api
-generate_dynamic_reconfigure_options(cfg/Tutorials.cfg)
-
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -123,12 +119,10 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
-  ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
   ${catkin_INCLUDE_DIRS}
 )
 
 add_executable(motionApplier src/motionApplier.cpp)
-add_dependencies(motionApplier ${PROJECT_NAME}_gencfg)
 target_link_libraries(motionApplier ${catkin_LIBRARIES})
 add_dependencies(motionApplier motionApplier_generate_messages_cpp)
 
