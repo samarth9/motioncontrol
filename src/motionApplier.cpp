@@ -80,18 +80,18 @@ void turnxyPlane(){
 			// we can also check that if we are in this range and the angular velocity is also small then we can assume
 			// that we are stable and we can now start moving forward
 			reached=true;
-			pwm.data = 0;
-			dir.data = 5;
+			pwm.data = 255;
+			dir.data = 1;
 			PWM.publish(pwm);
 			direction.publish(dir);
-			ROS_INFO("thrusters stopped");			
+			ROS_INFO("thrusters forward");			
 		}
 
 		if(reached){
 			while(ros::ok()){
 				PWM.publish(pwm);
 				direction.publish(dir);
-				ROS_INFO("thrusters stopped");							
+				ROS_INFO("thrusters forward");							
 				loop_rate.sleep();
 			}
 			break;
